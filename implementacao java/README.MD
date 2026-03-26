@@ -6,7 +6,7 @@ O repositório está organizado da seguinte forma:
 * **`build.xml`**: Ficheiro de configuração do **Apache Ant**. É responsável por automatizar a compilação e a geração do ficheiro executável `.jar`.
 * **`Relatorio.pdf`**: Relatório técnico detalhando a modelação OO, tratamento de exceções, descrição dos testes e diagramas.
 * **`diagramaUML.png`**: Diagrama de classes UML que representa a arquitetura e os relacionamentos do sistema.
-* **`casosverificados`**: são casos criados para estressar o programa (Ler seção 2 do relatório).
+* **`casosVerificados`**: são casos criados para estressar o programa (Ler seção 2 do relatório).
 
 ---
 
