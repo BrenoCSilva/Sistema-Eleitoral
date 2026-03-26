@@ -17,7 +17,7 @@ Existem duas formas principais de validar e executar o projeto:
 O script de testes verifica se as saídas do seu programa coincidem exatamente com as saídas de referência.
 
 1.  Expanda o conteúdo do ficheiro zip (`testes-script-poo-trab2`).
-2.  Coloque a pasta deste trabalho num **subdiretório** a partir de onde está o ficheiro `test.sh`.
+2.  Coloque a pasta deste trabalho dentro diretório  `testes-script-poo-trab2`, ou seja onde está o `test.sh`.
 3.  No terminal, execute:
     ```bash
     ./test.sh
