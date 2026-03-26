@@ -1,0 +1,1308 @@
+#include "Candidato.hpp"
+#include "Partido.hpp"
+
+Candidato::Candidato(int codigoMunicipio, int codigoCargo, int numeroCandidato, const std::string &nomeUrna, int numeroFederacao, SituacaoCandidato resultadoTurno, Genero &genero,  Partido *partido, Data& dataNascimento,  Data &dataAtual)
+    : codigoMunicipio(codigoMunicipio),      
+      codigoCargo(codigoCargo),             
+      numeroCandidato(numeroCandidato),      
+      nomeUrna(nomeUrna),
+      numeroFederacao(numeroFederacao),
+      dataNascimento(dataNascimento),     
+      resultadoTurno(resultadoTurno),
+      genero(genero),
+      partido(partido),
+      qtdVotosRecebidos(0)                 
+{
+    this->idade = calculaIdade(dataAtual);
+}
+
+const std::string& Candidato::getNome() const{
+    return this->nomeUrna;
+}
+
+int Candidato::getVotos() const{
+    return this->qtdVotosRecebidos;
+}
+
+int Candidato::getNumeroCandidato() const{
+    return this->numeroCandidato;
+}
+
+int Candidato::getNumeroFederacao() const{
+    return this->numeroFederacao;
+}
+
+Partido* Candidato::getPartido() const{
+    return this->partido;
+}
+
+SituacaoCandidato Candidato::getResultadoTurno() const{
+    return this->resultadoTurno;
+}
+
+void Candidato::incrementarVotos(int votos){
+
+    this->qtdVotosRecebidos += votos;
+    this->partido->atualizaAtributos(votos, 0);
+}
+
+
+bool Candidato::operator<(Candidato const &outro)const{
+
+    if (this->getVotos() != outro.getVotos()) {
+
+        return this->getVotos() > outro.getVotos();
+    }
+
+    return this->getIdade() > outro.getIdade();
+ }
+
+bool Candidato::operator==(Candidato const&outro) const{
+    return this->getNumeroCandidato() == outro.getNumeroCandidato();
+}
+
+int Candidato::getIdade() const{
+    return this->idade;
+}
+
+int Candidato::calculaIdade(const Data& dataAtual) const{
+ 
+    auto time_point_nascimento = this->dataNascimento.getTimePoint();
+    auto time_point_eleicao = dataAtual.getTimePoint();
+
+    std::time_t t_nascimento = std::chrono::system_clock::to_time_t(time_point_nascimento);
+    std::time_t t_eleicao = std::chrono::system_clock::to_time_t(time_point_eleicao);
+
+    std::tm tm_nascimento = *std::localtime(&t_nascimento);
+    std::tm tm_eleicao = *std::localtime(&t_eleicao);
+
+    int anos = tm_eleicao.tm_year - tm_nascimento.tm_year;
+    
+    if (tm_eleicao.tm_mon < tm_nascimento.tm_mon || 
+       (tm_eleicao.tm_mon == tm_nascimento.tm_mon && tm_eleicao.tm_mday < tm_nascimento.tm_mday)) {
+        anos--; 
+    }
+    
+    return anos;
+}#include "Data.hpp" 
+#include <stdexcept>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
+
+
+Data::Data(const std::string& dataStr){
+    
+    std::tm tm = {};
+    std::stringstream ss(dataStr);
+    ss >> std::get_time(&tm, "%d/%m/%Y");
+
+    if (ss.fail()) {
+        throw std::runtime_error("Erro de parse: a data '" + dataStr + "' nao esta no formato dd/mm/yyyy.");
+    }
+
+    std::time_t tempo_t = std::mktime(&tm);
+    if (tempo_t == -1) {
+        throw std::runtime_error("Erro de conversao: data invalida.");
+    }
+    
+    this->m_time_point = std::chrono::system_clock::from_time_t(tempo_t); 
+}
+
+std::string Data::paraString(const std::string& formato) const {
+    
+    std::time_t tempo_t = std::chrono::system_clock::to_time_t(this->m_time_point);
+    std::tm tm_local = *std::localtime(&tempo_t); 
+
+    std::stringstream ss;
+    ss << std::put_time(&tm_local, formato.c_str());
+    
+    return ss.str();
+}
+
+const std::chrono::system_clock::time_point& Data::getTimePoint() const {
+    return this->m_time_point;
+}#include "Eleicao.hpp"
+#include "Candidato.hpp"
+#include "Partido.hpp"
+#include <map>
+
+
+
+Eleicao::Eleicao(){
+    this->qtdVereadoresEleitos = 0;
+    this->qtdFeminino =0;
+    this->qtdMasculino=0;
+    this->qtdVotosLegenda =0;
+    this->qtdVotosNominais=0;
+}
+
+
+Candidato* Eleicao::criaCandidato(int codigoMunicipio, int codigoCargo, int numeroCandidato, const std::string &nomeUrna, int numeroFederacao, SituacaoCandidato resultadoTurno, Genero &genero,  Partido *partido,  Data& dataNascimento, Data &dataAtual){
+
+    auto it = this->candidatos.find(numeroCandidato);
+
+    
+    if (it != this->candidatos.end()) {
+
+        return it->second;
+    }
+
+
+    Candidato *candidato = new Candidato(codigoMunicipio, codigoCargo,numeroCandidato, nomeUrna,  numeroFederacao, resultadoTurno, genero, partido, dataNascimento, dataAtual);
+
+    this->candidatos.insert({numeroCandidato, candidato});
+    partido->adicionarCandidato(candidato);
+
+    return candidato;
+}
+
+
+Candidato* Eleicao::getCandidato(int numeroCandidato)const{
+     return candidatos.at(numeroCandidato);
+}
+
+const std::map<int, Candidato*>& Eleicao::getCandidatos()const{
+
+    return this->candidatos;
+}
+
+
+Partido* Eleicao::criaPartido(int numeroPartido, const std::string &siglaPartido) {
+    
+   
+    auto it = this->partidos.find(numeroPartido);
+
+    
+    if (it != this->partidos.end()) {
+
+        return it->second;
+    }
+
+    Partido *partido = new Partido(numeroPartido, siglaPartido);
+    this->partidos.insert({numeroPartido, partido});
+    
+    return partido;
+}
+
+
+Partido* Eleicao::getPartido(int numeroPartido)const{
+
+    return partidos.at(numeroPartido);
+}
+
+
+const std::map<int, Partido*>& Eleicao::getPartidos()const{
+
+    return this->partidos;
+}
+
+
+
+void Eleicao::incrementrarQtdMasculino(){
+    this->qtdMasculino++;
+}
+
+void Eleicao::incrementrarQtdFeminino(){
+    this->qtdFeminino++;
+}
+
+void Eleicao::incrementarQtdNominal(int qtdVotos){
+    this->qtdVotosNominais+=qtdVotos;
+}
+
+void Eleicao::incrementarQtdLegenda(int qtdVotos){
+    this->qtdVotosLegenda+=qtdVotos;
+}
+void Eleicao::incrementarVereadoresEleitos(){
+    this->qtdVereadoresEleitos++;
+}
+
+
+int Eleicao::getQtdVereadoresEleitos()const{
+
+    return this->qtdVereadoresEleitos;
+}
+
+int Eleicao::getQtdMasculino()const{
+
+    return this->qtdMasculino;
+    
+}
+
+int Eleicao::getQtdFeminino()const{
+
+    return this->qtdFeminino;
+}
+
+int Eleicao::getQtdVotosNominais()const{
+
+    return this->qtdVotosNominais;
+    
+}
+
+int Eleicao::getQtdVotosLegenda()const{
+
+    return this->qtdVotosLegenda;
+    
+}
+
+
+ Eleicao::~Eleicao(){
+
+
+    for(auto &par: this->partidos){
+         delete par.second;
+    }
+
+    for(auto &par : this->candidatos){
+        delete par.second;
+    }
+ }#include "Genero.hpp"
+
+
+
+int getIdGenero(Genero genero) {
+    
+    return static_cast<int>(genero);
+}
+
+Genero generoCandidato(int codigo){
+    switch (codigo) {
+        case 2:
+            return Genero::MASCULINO;
+        case 4:
+            return Genero::FEMININO;
+        default:
+            throw std::invalid_argument("Código de gênero inválido: " + std::to_string(codigo));
+    }
+}#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include "Eleicao.hpp"
+#include "Leitor.hpp"
+#include "Candidato.hpp"
+#include "Partido.hpp"
+#include "SituacaoCandidato.hpp"
+
+
+
+namespace { 
+
+    std::string limparAspas(const std::string& string) {
+        
+      
+        if (string.length() >= 2 && string.front() == '"' && string.back() == '"') {
+           
+            return string.substr(1, string.length() - 2);
+        }
+        
+        return string;
+    }
+
+    std::string iso_8859_1_to_utf8(std::string &str){
+    
+        std::string strOut;
+        for (std::string::iterator it = str.begin(); it != str.end(); ++it)
+        {
+          uint8_t ch = *it;
+          if (ch < 0x80)
+          {
+            strOut.push_back(ch);
+          }
+          else
+          {
+ 
+            strOut.push_back(0b11000000 | (ch >> 6));
+        
+            strOut.push_back(0b10000000 | (ch & 0b00111111));
+          }
+        }
+        return strOut;
+    }
+
+}
+
+void Leitor::carregarArquivoCandidatos(std::string caminho, int municipioInteresse, Eleicao&eleicao, Data &dataAtual) {
+    
+    std::ifstream in(caminho);
+    
+    int qtd=0;
+    std::string linha;
+    std::getline(in, linha); // Descarta o cabeçalho
+
+    while (std::getline(in, linha)) {
+        
+        std::stringstream extrair(linha);
+        std::string coluna;
+        std::vector<std::string> colunas;
+
+    
+        while (std::getline(extrair, coluna, ';')) {
+            colunas.push_back(coluna);
+        }
+
+        if (colunas.size() > 48) {
+               
+            int codigoMunicipio = std::stoi(limparAspas(colunas[11]));
+            int codigoCargo = std::stoi(limparAspas(colunas[13]));
+            int numeroCandidato = std::stoi(limparAspas(colunas[16]));
+            std::string nomeUrna = limparAspas(colunas[18]);
+            int numeroPartido = std::stoi(limparAspas(colunas[25]));
+            std::string siglaPartido = limparAspas(colunas[26]);
+            int numeroFederacao = std::stoi(limparAspas(colunas[28]));
+            std::string dataNascimento = limparAspas(colunas[36]);
+            int codigoGenero = std::stoi(limparAspas(colunas[38]));
+            int codigoResultadoTurno = std::stoi(limparAspas(colunas[48]));
+            
+            std::string nomeUrnaUTF = iso_8859_1_to_utf8(nomeUrna);
+            std::string siglaPartidoUTF = iso_8859_1_to_utf8(siglaPartido);
+
+            SituacaoCandidato situacao = converteSituacao(codigoResultadoTurno);
+
+            Data dataNascimentoformatada(dataNascimento);
+            
+            Genero genero = generoCandidato(codigoGenero);
+            
+            Partido *partido = eleicao.criaPartido(numeroPartido, siglaPartidoUTF);
+            
+            if(municipioInteresse == codigoMunicipio && codigoCargo == 13 && codigoResultadoTurno != -1){
+                
+                Candidato *candidato = eleicao.criaCandidato(codigoMunicipio, codigoCargo,numeroCandidato, nomeUrnaUTF,  numeroFederacao, situacao, genero, partido, dataNascimentoformatada, dataAtual);
+                qtd++;
+                                
+                if(situacao == SituacaoCandidato::ELEITO_POR_QP || situacao == SituacaoCandidato::ELEITOR_POR_MEDIA){
+    
+                    eleicao.incrementarVereadoresEleitos();
+                    partido->adicionarCandidatoEleito(candidato);
+
+                    if(genero == Genero::MASCULINO){
+                    eleicao.incrementrarQtdMasculino();
+
+                    }
+                    else if(genero == Genero::FEMININO){
+                        eleicao.incrementrarQtdFeminino();
+                    }
+                }
+                
+               
+            }
+        }
+    }
+    in.close();
+}
+
+
+void  Leitor::carregarArquivoVotacao(std::string caminho, int municipioInteresse,  Eleicao &eleicao){
+  
+    std::ifstream in(caminho);
+    std::string linha;
+    std::getline(in, linha); // Descarta o cabeçalho
+
+    while (std::getline(in, linha)) {
+        
+        std::stringstream extrair(linha);
+        std::string coluna;
+        std::vector<std::string> colunas;
+
+    
+        while (std::getline(extrair, coluna, ';')) {
+            colunas.push_back(coluna);
+        }
+        if (colunas.size() > 21) {
+               
+            int codigoMunicipio = std::stoi(limparAspas(colunas[13]));
+            int codigoCargo = std::stoi(limparAspas(colunas[17]));
+            int voto = std::stoi(limparAspas(colunas[19]));
+            int qtd_votos = std::stoi(limparAspas(colunas[21]));
+            
+            if(codigoMunicipio == municipioInteresse && codigoCargo == 13){
+                
+                if(voto < 95 ){  //voto branco, nulo ou de legenda
+                    
+                    Partido *partido = eleicao.getPartido(voto);
+                    if(partido != nullptr){  //  se nao for voto nulo ou branco ou de um partido nao cadastrado
+                       
+                        partido->atualizaAtributos(0, qtd_votos);
+                        eleicao.incrementarQtdLegenda(qtd_votos);
+                  
+                    }
+                    
+
+                }
+
+                else if(voto > 100){ // votoNominal
+                   
+                   try {
+                        Candidato* candidatoEncontrado = eleicao.getCandidato(voto);
+                        candidatoEncontrado->incrementarVotos(qtd_votos);
+                         eleicao.incrementarQtdNominal(qtd_votos);
+
+                    } catch (const std::out_of_range& e) {
+                      
+                    }
+                      
+        
+                }
+            }
+        }
+    }
+    in.close();
+}#include <iostream>
+#include <string>
+#include <locale>
+#include "Leitor.hpp"
+#include "Eleicao.hpp"
+#include "Relatorio.hpp"
+#include "Data.hpp"
+
+int main(int argc, char *argv[]) {
+
+    if (argc != 5) {
+        std::cerr << "Erro: Número incorreto de argumentos." << std::endl;
+        std::cerr << "Uso: ./vereadores <codigo_municipio> <caminho_candidatos> <caminho_votacao> <data>" << std::endl;
+        return 1; // saida de erro
+    }
+
+    try {
+        std::locale brasilLocale("pt_BR.UTF-8");
+        std::cout.imbue(brasilLocale);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Aviso: Nao foi possivel configurar o locale para pt_BR.UTF-8." << std::endl;
+    }
+    
+
+    // argv[0] é ./vereadores
+    int codigoMunicipio = std::stoi(argv[1]); 
+    std::string caminhoCandidatos = argv[2];
+    std::string caminhoVotacao = argv[3];
+    std::string dataString = argv[4];
+
+
+
+    try {
+        Eleicao eleicao;
+        Data dataEleicao(dataString);
+
+        Leitor::carregarArquivoCandidatos(caminhoCandidatos, codigoMunicipio, eleicao, dataEleicao);
+        Leitor::carregarArquivoVotacao(caminhoVotacao, codigoMunicipio, eleicao);
+        Relatorio::gerarRelatorios(eleicao);
+    
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "Erro de argumento: Codigo do municipio deve ser um numero inteiro." << std::endl;
+        return 1;
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Erro de argumento: " << e.what() << std::endl;
+        return 1;
+    } catch (const std::exception& e) {
+        std::cerr << "Ocorreu um erro durante o processamento: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0; 
+}#include "Partido.hpp"
+#include "Candidato.hpp"
+#include <vector>
+#include <algorithm> // Para std::max_element
+
+
+
+Partido::Partido(int numeroPartido, const std::string &siglaPartido){
+
+    this->numeroPartido = numeroPartido;
+    this->siglaPartido = siglaPartido;
+    
+    this->votosLegenda = 0;
+    this->votosNominais = 0;
+    this->votosTotais = 0;
+}
+
+void Partido::atualizaAtributos(int nominais, int legenda){
+    this->votosNominais += nominais;
+    this->votosLegenda += legenda;
+    
+    this->votosTotais = this->votosNominais + this->votosLegenda;
+}
+
+std::set<const Candidato*> Partido::getCandidatosEleitos(){
+    return this->candidatosEleitos;
+}
+
+int Partido::getNumeroPartido() const{
+
+    return this->numeroPartido;
+
+}
+
+std::string Partido::getSiglaPartido() const{
+
+    return this->siglaPartido;
+
+}
+
+int Partido::getVotosTotais() const{
+    return this->votosTotais;
+}
+
+int Partido::getVotosNominais()const{
+    return this->votosNominais;
+}
+
+int Partido::getVotosLegenda()const{
+    return this->votosLegenda;
+}
+
+bool Partido::operator<(Partido const &outro)const{ 
+    if(this->votosTotais != outro.votosTotais){
+        return this->votosTotais > outro.votosTotais;
+    }
+
+    return this->numeroPartido < outro.numeroPartido;
+}
+
+
+void Partido::adicionarCandidato(const Candidato *candidato){
+
+    this->candidatos.insert(candidato);
+
+}
+
+void Partido::adicionarCandidatoEleito(const Candidato *candidato){
+
+    this->candidatosEleitos.insert(candidato);
+
+}
+
+const Candidato* Partido::candidatoMaisVotado()const {
+   
+    if (this->candidatos.empty()) {
+        return nullptr;
+    }
+
+    auto comparador = [](const Candidato* a, const Candidato* b) {
+        if(a->getVotos() != b->getVotos()){
+            return a->getVotos() < b->getVotos();
+        }
+        return a->getIdade() < b->getIdade();
+    };
+
+    auto it_mais_votado = std::max_element(this->candidatos.begin(), this->candidatos.end(), comparador);
+
+    return *it_mais_votado;
+}
+
+
+const Candidato* Partido::candidatoMenosVotado() const {
+   
+    if (this->candidatos.empty()) {
+        return nullptr;
+    }
+
+    auto comparador = [](const Candidato* a, const Candidato* b) {
+        if(a->getVotos() != b->getVotos()){
+            return a->getVotos() < b->getVotos();
+        }
+        return a->getIdade() < b->getIdade();
+    };
+
+    auto it_mais_votado = std::min_element(this->candidatos.begin(), this->candidatos.end(), comparador);
+
+    return *it_mais_votado;
+}
+
+#include "Relatorio.hpp"
+#include <vector>
+#include <algorithm>
+#include <iterator>  // Necessário para std::distance
+#include "Candidato.hpp"
+#include "Partido.hpp"
+#include <locale>
+#include <iomanip> 
+
+
+void Relatorio::gerarRelatorios(Eleicao &eleicao){
+
+    relatorio1NumeroDeVagas(eleicao);
+    std::map<int, Candidato> candidatosEleitosProporcional = relatorio2_vereadoresEleitos(eleicao);
+    std::map<int, Candidato> candidatosEleitosMajoritaria = relatorio3_maisVotados(eleicao);
+    relatorio4_naoEleitosQueSeriam(eleicao, candidatosEleitosProporcional) ;
+    relatorio5_beneficiadosProporcional(eleicao, candidatosEleitosProporcional, candidatosEleitosMajoritaria);
+    relatorio6_votacaoPorPartido(eleicao);
+    relatorio7_extremidadesDoPartido(eleicao);
+    relatorio8_faixaEtaria(eleicao, candidatosEleitosProporcional);
+    relatorio9_genero(eleicao);
+    relatorio10_votosValidos(eleicao);
+}
+
+
+void Relatorio::relatorio1NumeroDeVagas(Eleicao &eleicao){
+
+    std::cout << "\nNúmero de vagas: " << eleicao.getQtdVereadoresEleitos() << std::endl;
+ }
+
+
+std::map<int, Candidato> Relatorio::relatorio2_vereadoresEleitos(Eleicao &eleicao){
+    
+    std::cout << "\nVereadores eleitos: " << std::endl;
+    std::vector<Candidato> candidatos;
+    std::map<int, Candidato> candidatosEleitosProporcional;
+    
+    for(auto const &par : eleicao.getCandidatos()){
+       candidatos.push_back(*(par.second));
+    }
+
+    std::sort(candidatos.begin(), candidatos.end());
+
+    int i=1;
+    for(Candidato &candidato : candidatos){
+        
+        if(candidato.getResultadoTurno() == SituacaoCandidato::ELEITO_POR_QP || candidato.getResultadoTurno() == SituacaoCandidato::ELEITOR_POR_MEDIA){
+    
+            if(i > eleicao.getQtdVereadoresEleitos()){
+                break;
+            }
+          
+            if(candidato.getNumeroFederacao() != -1){
+                std::cout << i << " - *";
+                std::cout << candidato.getNome() << " (" << candidato.getPartido()->getSiglaPartido() << ", " << candidato.getVotos() << " votos)" << std::endl;
+                i++;
+            }else{
+                std::cout << i << " - ";
+                std::cout << candidato.getNome() << " (" << candidato.getPartido()->getSiglaPartido() << ", " << candidato.getVotos() << " votos)" << std::endl;
+                i++;
+            }
+            candidatosEleitosProporcional.insert({candidato.getNumeroCandidato(), candidato});
+        }
+    }
+
+    return candidatosEleitosProporcional;
+}
+
+
+std::map<int, Candidato> Relatorio::relatorio3_maisVotados(Eleicao &eleicao){
+
+    std::map<int, Candidato> candidatosEleitosMajoritaria;
+    std::vector<Candidato> candidatos;
+    std::cout << "\nCandidatos mais votados (em ordem decrescente de votação e respeitando número de vagas):" << std::endl;
+
+    for(auto const &par : eleicao.getCandidatos()){
+        candidatos.push_back(*(par.second));
+    }
+    std::sort(candidatos.begin(), candidatos.end());
+
+    int i=1;
+    for(Candidato &candidato : candidatos){
+
+        if(i > eleicao.getQtdVereadoresEleitos()){
+            break;
+        }
+
+        std::cout << i << " - ";
+
+        if(candidato.getNumeroFederacao() != -1){
+            std::cout << "*";
+        }
+       
+        std::cout << candidato.getNome() << " (" << candidato.getPartido()->getSiglaPartido() << ", " << candidato.getVotos() << " votos)" << std::endl;
+        i++;
+        candidatosEleitosMajoritaria.insert({candidato.getNumeroCandidato(), candidato});
+    }
+
+    return candidatosEleitosMajoritaria;
+}
+
+
+void Relatorio::relatorio4_naoEleitosQueSeriam(Eleicao &eleicao, std::map<int, Candidato> &candidatosEleitosProporcional){
+
+    std::cout << "\nTeriam sido eleitos se a votação fosse majoritária, e não foram eleitos:\n (com sua posição no ranking de mais votados)" << std::endl;
+    std::vector<Candidato> candidatos;
+
+   for(auto const &par : eleicao.getCandidatos()){
+        candidatos.push_back(*(par.second));
+    }
+
+    std::sort(candidatos.begin(), candidatos.end());
+
+    int i=1;
+    for(Candidato &candidato : candidatos){
+            
+        if(i > eleicao.getQtdVereadoresEleitos()){
+            break;
+        }
+        auto it = candidatosEleitosProporcional.find(candidato.getNumeroCandidato());
+        if(it == candidatosEleitosProporcional.end()){
+            std::cout << i << " - ";
+            if (candidato.getNumeroFederacao() != -1) {
+                std::cout << "*";
+            }
+
+            std::cout << candidato.getNome() << " (" << candidato.getPartido()->getSiglaPartido() << ", "<< candidato.getVotos() << " votos)" << std::endl;
+        }
+        i++;       
+    }
+}
+
+
+void Relatorio::relatorio5_beneficiadosProporcional(Eleicao &eleicao, std::map<int, Candidato> &candidatosEleitosProporcional, std::map<int, Candidato> &candidatosEleitosMajoritaria){
+
+
+    std::cout << "\nEleitos, que se beneficiaram do sistema proporcional:\n (com sua posição no ranking de mais votados)\n"; // RELATORIO 5
+    std::vector<Candidato> candidatos;
+    std::vector<Candidato> candidatosProporcional;
+
+    for(auto const &par : eleicao.getCandidatos()){
+        candidatos.push_back(*(par.second));
+    }
+
+    for(auto const &par : candidatosEleitosProporcional){
+        candidatosProporcional.push_back(par.second);
+    }
+
+   std::sort(candidatos.begin(), candidatos.end());
+   std::sort(candidatosProporcional.begin(), candidatosProporcional.end());
+
+   for(Candidato &candidatoProporcional : candidatosProporcional){
+        
+        auto it = candidatosEleitosMajoritaria.find(candidatoProporcional.getNumeroCandidato());
+        if(it == candidatosEleitosMajoritaria.end()){
+            
+            
+            auto candidadoBusca = std::find(candidatos.begin(), candidatos.end(), candidatoProporcional);
+
+            int indice = std::distance(candidatos.begin(), candidadoBusca);
+
+            std::cout << indice + 1  << " - "; 
+            if (candidatoProporcional.getNumeroFederacao() != -1) {
+                std::cout << "*";
+            }
+            std::cout << candidatoProporcional.getNome() << " (" 
+                    << candidatoProporcional.getPartido()->getSiglaPartido() << ", "
+                    << candidatoProporcional.getVotos() << " votos)" << std::endl;
+        }      
+
+    }
+       
+
+}
+
+void Relatorio::relatorio6_votacaoPorPartido(Eleicao &eleicao){
+    
+    std::vector<Partido> partidos;
+    
+    for(auto const &par : eleicao.getPartidos()){
+        partidos.push_back(*(par.second));
+    }
+    
+    std::sort(partidos.begin(), partidos.end());
+    std::cout << "\nVotação dos partidos e número de candidatos eleitos:\n"; // RELATORIO 6
+    
+    int i=1;
+    
+    for(Partido &partido : partidos){
+        
+        std::cout << i << " - " << partido.getSiglaPartido() << " - " << partido.getNumeroPartido() << ", " << partido.getVotosTotais();
+
+        if (partido.getVotosTotais() > 1) {
+            std::cout << " votos (";
+        } else {
+            std::cout << " voto (";
+        }
+
+        std::cout << partido.getVotosNominais();
+
+      
+        if (partido.getVotosNominais() > 1) {    
+            std::cout << " nominais e "; 
+            
+        } else {
+            std::cout << " nominal e ";
+        }
+
+        std::cout << partido.getVotosLegenda() << " de legenda), ";
+
+        std::cout << partido.getCandidatosEleitos().size();
+
+        if (partido.getCandidatosEleitos().size() >1) {
+            std::cout << " candidatos eleitos\n";
+        } else {
+            std::cout << " candidato eleito\n";
+        }
+        i++;
+    }
+}
+
+
+
+bool cmpMaisVotado(const Partido& p1, const Partido& p2) {
+    const Candidato* maisVotado1 = p1.candidatoMaisVotado();
+    const Candidato* maisVotado2 = p2.candidatoMaisVotado();
+
+    // nenhum tem candidatos, ordena pelo número do partido
+    if (!maisVotado1 && !maisVotado2) {
+        return p1.getNumeroPartido() < p2.getNumeroPartido();
+    }
+
+    // apenas p1 tem candidato
+    if (maisVotado1 && !maisVotado2) return true;
+
+    // apenas p2 tem candidato
+    if (!maisVotado1 && maisVotado2) return false;
+
+    // ambos tem candidatos
+    if (maisVotado1->getVotos() != maisVotado2->getVotos()) {
+        return maisVotado1->getVotos() > maisVotado2->getVotos(); // decrescente
+    }
+
+    // empate: desempata pelo número do partido (crescente)
+    return p1.getNumeroPartido() < p2.getNumeroPartido();
+}
+
+
+void Relatorio::relatorio7_extremidadesDoPartido(Eleicao &eleicao){
+
+    std::vector<Partido*> partidos;
+
+    for (auto const& par : eleicao.getPartidos()) {
+        partidos.push_back(par.second);
+    }
+
+    std::stable_sort(partidos.begin(), partidos.end(), [](Partido* p1, Partido* p2) {
+        return cmpMaisVotado(*p1, *p2);
+    });
+
+
+    std::cout << "\nPrimeiro e último colocados de cada partido:\n"; // RELATORIO 7
+
+    int i=1;
+    std::locale brasilLocale("pt_BR.UTF-8");
+
+    for(Partido *partido : partidos){
+        
+        const Candidato *maisVotado = partido->candidatoMaisVotado();
+        const Candidato *menosVotado = partido->candidatoMenosVotado();
+        
+        if(maisVotado != nullptr && menosVotado != nullptr && maisVotado != menosVotado){
+            
+            std::cout.imbue(std::locale::classic());
+            
+            std::cout << i;
+            std::cout << " - " << partido->getSiglaPartido() << " - " << partido->getNumeroPartido() 
+            << ", " << maisVotado->getNome() << " ("; 
+            std::cout << maisVotado->getNumeroCandidato() ;
+            
+            std::cout.imbue(brasilLocale);
+            
+            std::cout << ", " <<
+            maisVotado->getVotos() << " votos) / " << menosVotado->getNome() << " (" ;
+
+            std::cout.imbue(std::locale::classic());
+            std::cout <<menosVotado->getNumeroCandidato() << ", " ;
+            std::cout.imbue(brasilLocale);
+            std::cout <<  menosVotado->getVotos();
+            
+            if(menosVotado->getVotos() > 1){
+                std::cout << " votos)\n";
+            }
+            else{
+                std::cout << " voto)\n";
+            }
+            i++;
+        }
+    
+    }
+}
+
+
+void Relatorio::relatorio8_faixaEtaria( Eleicao& eleicao,  std::map<int,Candidato>& candidatosEleitosProporcional){
+
+    int c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
+    for (const auto& par : candidatosEleitosProporcional) {
+ 
+    const Candidato& c = par.second;
+
+    if (c.getIdade() < 30) {
+        c1++;
+    } else if (c.getIdade() < 40) {
+        c2++;
+    } else if (c.getIdade() < 50) {
+        c3++;
+    } else if (c.getIdade() < 60) {
+        c4++;
+    } else {
+        c5++;
+    }
+}
+
+    double divisor = 1.0;
+    if (!candidatosEleitosProporcional.empty()) {
+        divisor = candidatosEleitosProporcional.size();
+    }
+
+    std::cout << "\nEleitos, por faixa etária (na data da eleição):" << std::endl;
+
+    std::cout << std::fixed << std::setprecision(2);
+
+    std::cout << "      Idade < 30: " << c1 << " (" << (c1 * 100.0 / divisor) << "%)" << std::endl;
+    std::cout << "30 <= Idade < 40: " << c2 << " (" << (c2 * 100.0 / divisor) << "%)" << std::endl;
+    std::cout << "40 <= Idade < 50: " << c3 << " (" << (c3 * 100.0 / divisor) << "%)" << std::endl;
+    std::cout << "50 <= Idade < 60: " << c4 << " (" << (c4 * 100.0 / divisor) << "%)" << std::endl;
+    std::cout << "60 <= Idade     : " << c5 << " (" << (c5 * 100.0 / divisor) << "%)" << std::endl;
+}
+
+
+void Relatorio::relatorio9_genero(Eleicao& eleicao){
+    
+    int totalGenero = eleicao.getQtdMasculino() + eleicao.getQtdFeminino();
+    double divisor = totalGenero;
+
+    if (totalGenero == 0) {
+        divisor = 1.0;
+    }
+
+    std::cout << "\nEleitos, por gênero:" << std::endl;
+
+    std::cout << std::fixed << std::setprecision(2);
+
+    std::cout << "Feminino:  " << eleicao.getQtdFeminino() << " ("
+              << (eleicao.getQtdFeminino() * 100.0 / divisor) << "%)" << std::endl;
+
+    std::cout << "Masculino: " << eleicao.getQtdMasculino() << " ("
+              << (eleicao.getQtdMasculino() * 100.0 / divisor) << "%)" << std::endl;
+}
+
+
+void Relatorio::relatorio10_votosValidos(Eleicao& eleicao){
+   
+    int totalVotos = eleicao.getQtdVotosLegenda() + eleicao.getQtdVotosNominais();
+    double divisor = totalVotos;
+
+    if (totalVotos == 0) {
+        divisor = 1.0;
+    }
+
+    double porcentagemNominal = eleicao.getQtdVotosNominais() * 100.0 / divisor;
+    double porcentagemLegenda = eleicao.getQtdVotosLegenda() * 100.0 / divisor;
+
+    std::cout << std::fixed << std::setprecision(2);
+
+    std::cout << "\nTotal de votos válidos:    " << totalVotos << std::endl;
+    std::cout << "Total de votos nominais:   " << eleicao.getQtdVotosNominais() << " (" << porcentagemNominal << "%)" << std::endl;
+    std::cout << "Total de votos de legenda: " << eleicao.getQtdVotosLegenda() << " (" << porcentagemLegenda << "%)" << std::endl;
+}
+
+#include "SituacaoCandidato.hpp"
+
+SituacaoCandidato converteSituacao(int codigo){
+
+    if(codigo == 2){
+        return SituacaoCandidato::ELEITO_POR_QP;
+    }
+    else if (codigo == 3){
+        return SituacaoCandidato::ELEITOR_POR_MEDIA;
+    }
+
+    else{
+        return SituacaoCandidato::NAO_ELEITO;
+    }
+}#ifndef CANDIDATO_HPP
+#define CANDIDATO_HPP
+
+#include<iostream>
+
+class Partido;
+
+#include "Data.hpp"
+#include "Genero.hpp"
+#include "SituacaoCandidato.hpp"
+
+
+class Candidato{
+
+    int codigoMunicipio;
+    int codigoCargo;
+    int numeroCandidato;
+    std::string nomeUrna;
+    int numeroFederacao;
+    Data dataNascimento;
+    SituacaoCandidato resultadoTurno;
+    Genero genero;
+    int idade;
+    Partido *partido;
+    int qtdVotosRecebidos;
+
+public: 
+
+    Candidato(int codigoMunicipio, int codigoCargo, int numeroCandidato, const std::string &nomeUrna, int numeroFederacao, SituacaoCandidato resultadoTurno, Genero &genero,  Partido *partido, Data& dataNascimento, Data &dataAtual);
+
+    void incrementarVotos(int votos);
+    const std::string& getNome()const;
+    int getVotos() const ;
+    int getNumeroCandidato() const;
+    int getNumeroFederacao() const;
+    Partido* getPartido() const;
+    bool operator<(Candidato const &outro) const;
+    bool operator==(Candidato const&outro) const;
+  
+    SituacaoCandidato getResultadoTurno() const;
+
+    int getIdade()const;
+
+    int calculaIdade(const Data& dataAtual) const;
+};
+
+
+
+
+
+
+#endif#ifndef DATA_HPP
+#define DATA_HPP
+
+#include <string>
+#include <chrono>
+
+
+class Data {
+public:
+
+    Data(const std::string& dataStr);
+
+    std::string paraString(const std::string& formato = "%d/%m/%Y") const;
+
+    const std::chrono::system_clock::time_point& getTimePoint() const;
+
+private:
+    std::chrono::system_clock::time_point m_time_point;
+};
+
+
+#endif#ifndef ELEICAO_HPP
+#define ELEICAO_HPP
+
+
+#include <iostream>
+#include <map>
+#include "Genero.hpp"
+#include "Data.hpp"
+#include "SituacaoCandidato.hpp"
+
+class Candidato;
+class Partido;
+
+class Eleicao{
+
+    std::map<int, Candidato*> candidatos;
+    std::map<int, Partido*> partidos;
+    int qtdVereadoresEleitos;
+    int qtdVotosLegenda;
+    int qtdVotosNominais;
+    int qtdMasculino;
+    int qtdFeminino;
+
+public:
+
+    Eleicao();
+    ~Eleicao();
+    
+    Candidato* criaCandidato(int codigoMunicipio, int codigoCargo, int numeroCandidato, const std::string &nomeUrna, int numeroFederacao, SituacaoCandidato resultadoTurno, Genero &genero,  Partido *partido,  Data& dataNascimento,  Data &dataAtual);
+    Candidato* getCandidato(int numeroCandidato)const;
+    const std::map<int, Candidato*>& getCandidatos()const;
+
+    Partido* criaPartido(int numeroPartido, const std::string &siglaPartido);
+    Partido* getPartido(int numeroPartido)const;
+    const std::map<int, Partido*>& getPartidos()const;
+
+
+
+
+    void incrementarVereadoresEleitos();
+    void incrementrarQtdMasculino();
+    void incrementrarQtdFeminino();
+    void incrementarQtdLegenda(int qtdVotos);
+    void incrementarQtdNominal(int qtdVotos);
+
+    int getQtdMasculino()const;
+    int getQtdFeminino()const;
+    int getQtdVereadoresEleitos()const;
+    int getQtdVotosLegenda()const;
+    int getQtdVotosNominais()const;
+
+  
+};
+
+
+
+
+
+#endif#ifndef GENERO_HPP
+#define GENERO_HPP
+
+
+#include <stdexcept> 
+#include <string>    
+
+
+enum class Genero : int {
+    MASCULINO = 2,
+    FEMININO = 4
+};
+
+int getIdGenero(Genero genero);
+
+Genero generoCandidato(int codigo);
+
+#endif#ifndef LEITOR_HPP
+#define LEITOR_HPP
+
+#include<iostream>
+#include <string>
+#include "Eleicao.hpp"
+
+class Leitor{
+
+
+public: 
+
+    void static carregarArquivoCandidatos(std::string caminho, int municipioInteresse, Eleicao &eleicao, Data &dataAtual);
+    void static carregarArquivoVotacao(std::string caminho, int municipioInteresse,  Eleicao &eleicao);
+
+
+};
+
+
+
+#endif #ifndef PARTIDO_HPP
+#define PARTIDO_HPP
+
+#include <iostream>
+#include <set>
+
+class Candidato;
+
+class Partido{
+
+     int numeroPartido;
+     std::string siglaPartido;
+     int votosNominais;
+     int votosLegenda;
+     int votosTotais;
+     
+    std::set<const Candidato*>candidatos;
+    std::set<const Candidato*>candidatosEleitos;
+
+public:
+
+    Partido(int numeroPartido, const std::string &siglaPartido);
+
+    void atualizaAtributos(int nominais, int legenda);
+
+    int getNumeroPartido() const;
+    std::string getSiglaPartido() const;
+    std::set<const Candidato*> getCandidatosEleitos();
+    int getVotosTotais() const;
+    int getVotosNominais()const;
+    int getVotosLegenda()const;
+    bool operator<(Partido const &outro)const;
+
+
+    void adicionarCandidato(const Candidato *candidato);
+    void adicionarCandidatoEleito(const Candidato *candidato);
+
+    const Candidato* candidatoMaisVotado() const;
+    const Candidato* candidatoMenosVotado() const;
+ 
+
+};
+
+
+
+#endif#ifndef RELATORIO_HPP
+#define RELATORIO_HPP
+
+#include <iostream>
+#include "Eleicao.hpp"
+
+
+class Relatorio{
+
+
+
+public:
+    static void gerarRelatorios(Eleicao &eleicao);
+    static std::map<int, Candidato>  relatorio2_vereadoresEleitos(Eleicao &eleicao);
+    static std::map<int, Candidato>  relatorio3_maisVotados(Eleicao &eleicao);
+    static void relatorio4_naoEleitosQueSeriam(Eleicao &eleicao, std::map<int, Candidato> &candidatosEleitosProporcional);
+    static void relatorio5_beneficiadosProporcional(Eleicao &eleicao, std::map<int, Candidato> &candidatosEleitosProporcional, std::map<int, Candidato> &candidatosEleitosMajoritaria);
+    static void  relatorio1NumeroDeVagas(Eleicao &eleicao);
+    static void relatorio6_votacaoPorPartido(Eleicao &eleicao);
+    static void relatorio7_extremidadesDoPartido(Eleicao &eleicao);
+    static void relatorio8_faixaEtaria( Eleicao& eleicao, std::map<int,Candidato>& candidatosEleitosProporcional);
+    static void relatorio9_genero(Eleicao& eleicao);
+    static void relatorio10_votosValidos( Eleicao& eleicao);
+};
+
+#endif#ifndef SITUACAO_CANDIDATO  
+#define SITUACAO_CANDIDATO
+
+
+enum class SituacaoCandidato : int{
+
+    ELEITO_POR_QP = 2,
+    ELEITOR_POR_MEDIA = 3,
+    NAO_ELEITO = 4
+
+};
+
+SituacaoCandidato converteSituacao(int codigo);
+
+#endif############
+# Exemplo de makefile
+# Prof. João Paulo A. Almeida
+# Programação OO
+# 
+# A princípio, você não precisa alterar nada, mas aqui assume-se que o diretório atual
+# é o diretório onde estão os códigos fonte (.cpp).
+#
+
+# nome do compilador
+CPP = g++
+
+# opções de compilação
+CFLAGS = -Wall -g
+CPPFLAGS = -std=c++17
+
+# define lista de arquivos-fonte, assumindo que estão no diretório atual
+FONTES = $(wildcard *.cpp) 
+
+# define lista dos arquivos-objeto usando nomes da lista de arquivos-fonte
+OBJETOS = $(FONTES:.cpp=.o)
+
+# nome do arquivo executável
+EXECUTAVEL = vereadores
+
+############ alvos
+#
+# use @ antes de todos os comandos, pois é necessário no script de teste
+#
+
+# alvo principal é o executável  
+all: $(EXECUTAVEL)
+
+# para linkar o executável, precisamos dos arquivos-objetos
+$(EXECUTAVEL): $(OBJETOS)
+	@$(CPP) -o $@ $^ 
+
+# alvo para cada arquivo-objeto depende do código fonte
+# (observação, aqui não estamos capturando as dependências de arquivos .h)
+%.o: %.cpp
+	@$(CPP) $(CPPFLAGS) -c $(CFLAGS) $^
+
+# comandos para execução	
+run: $(EXECUTAVEL)
+	@./$(EXECUTAVEL) $(CDMUN) candidatos.csv votacao.csv 06/10/2024
+
+# comando para limpeza
+clean: 
+	@rm -f *.o $(EXECUTAVEL) *.csv *.txt
