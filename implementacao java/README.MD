@@ -1,7 +1,3 @@
-# Sistema Eleitoral 
-
-Este projeto foi desenvolvido para a disciplina de **Programação Orientada a Objetos (2025/01)**. O sistema processa dados da Justiça Eleitoral referentes à votação de vereadores em municípios brasileiros nas eleições de 6 de outubro de 2024.
-
 ## 📂 Organização do Projeto
 
 O repositório está organizado da seguinte forma:
@@ -13,22 +9,22 @@ O repositório está organizado da seguinte forma:
 
 ---
 
-## 🚀 Como Executar
+## 🚀 Como Executar 
 
 Existem duas formas principais de validar e executar o projeto:
 
 ### 1. Utilizando o Script de Testes Automatizados
 
-O script de testes verifica se as saídas do seu programa coincidem exatamente com as saídas de referência esperadas pelo professor.
+O script de testes verifica se as saídas do seu programa coincidem exatamente com as saídas de referência.
 
 1.  Expanda o conteúdo do ficheiro zip (`testes-script-poo-trab1`).
-2.  Coloque a pasta do trabalho num **subdiretório** a partir de onde está o ficheiro `test.sh`.
+2.  Coloque a pasta deste trabalho dentro diretório  `testes-script-poo-trab1`, ou seja onde está o `test.sh`.
 3.  No terminal, execute:
     ```bash
     ./test.sh
     ```
 
-O script inclui dados de municípios dos estados do **Acre (AC), Espírito Santo (ES) e Pernambuco (PE)**. Note que o código é genérico e capaz de processar dados de qualquer estado ou município, desde que fornecidos os ficheiros CSV corretos.
+O script inclui dados de municípios dos estados do **Acre (AC), Espírito Santo (ES) e Pernambuco (PE)**. O código é capaz de processar dados de qualquer município, desde que fornecidos os ficheiros CSV corretos.
 
 ### 2. Execução Manual (via Terminal)
 
